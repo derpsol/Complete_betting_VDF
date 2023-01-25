@@ -74,8 +74,8 @@
       ]
     },
     "/home/eagle/Downloads/hardhatdeploy/contracts/MEOW.sol": {
-      "lastModificationDate": 1674618704720,
-      "contentHash": "c5e4d1127aeb6ff3e04618f310e7361d",
+      "lastModificationDate": 1674661925781,
+      "contentHash": "087cc14d45898c6f8aeceb504ba50f11",
       "sourceName": "contracts/MEOW.sol",
       "solcConfig": {
         "version": "0.8.17",

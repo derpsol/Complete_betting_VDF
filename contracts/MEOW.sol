@@ -8,42 +8,64 @@ import "./Ownable.sol";
 import "./SlothVDF.sol";
 
 interface IERC721 {
-    function balanceOf(address owner) external view returns (uint256);
+    event Transfer(
+        address indexed from,
+        address indexed to,
+        uint256 indexed tokenId
+    );
+    event Approval(
+        address indexed owner,
+        address indexed approved,
+        uint256 indexed tokenId
+    );
+    event ApprovalForAll(
+        address indexed owner,
+        address indexed operator,
+        bool approved
+    );
 
-    function getApproved(uint256 tokenId) external view returns (address);
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) external;
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) external;
+
+    function approve(address to, uint256 tokenId) external;
+
+    function getApproved(uint256 tokenId)
+        external
+        view
+        returns (address operator);
+
+    function setApprovalForAll(address operator, bool _approved) external;
 
     function isApprovedForAll(address owner, address operator)
         external
         view
         returns (bool);
 
-    function minterOf(uint256 tokenId) external view returns (address);
-
-    function ownerOf(uint256 tokenId) external view returns (address owner);
-
-    function tokenOfOwnerByIndex(address owner, uint256 index)
-        external
-        view
-        returns (uint256);
-
-    function tokensOfOwner(address owner)
-        external
-        view
-        returns (uint256[] memory);
-
-    function totalSupply() external view returns (uint256);
-
-    function transferFrom(
+    function safeTransferFrom(
         address from,
         address to,
-        uint256 tokenId
-    ) external payable;
+        uint256 tokenId,
+        bytes calldata data
+    ) external;
 }
 
 contract Meow is ERC20, Ownable {
     IERC721 NFT;
     uint256 seed;
-    uint256 public gamePrice = 10;
+    uint256 public gamePrice = 5000000000000000;
     uint256 public waitingId = 0;
     uint256 public firstrandom = 0;
     uint256 public secondrandom = 0;
@@ -51,6 +73,7 @@ contract Meow is ERC20, Ownable {
     address public teamAddress;
     uint256 public jackpotAmount = 0;
     uint256 public tmpgamePrice;
+    uint256 public stakeTotal;
     address[] private stakers;
     bool public big;
 
@@ -65,12 +88,11 @@ contract Meow is ERC20, Ownable {
 
     mapping(uint256 => Room) public room;
     mapping(address => uint256) public stakeAmount;
+    mapping(address => uint256) public seeds;
+
     uint256 public prime = 432211379112113246928842014508850435796007;
     uint256 public iterations = 1000;
-    uint256 private nonce;
-    mapping(address => uint256) public seeds;
- 
-    uint256 public stakeTotal;
+    uint256 private nonce; 
 
     using SafeMath for uint256;
 
@@ -87,7 +109,7 @@ contract Meow is ERC20, Ownable {
     }
 
     function decimals() public view virtual override returns (uint8) {
-        return 1;
+        return 0;
     }
 
     function stake(uint256 amount) external {
@@ -135,58 +157,39 @@ contract Meow is ERC20, Ownable {
             if (msg.value == gamePrice.mul(5)) {
                 big = false;
                 for (int i = 0; i < 5; i++) {
-                    uint256 tmp = uint256(keccak256(abi.encodePacked(msg.sender, nonce++, block.timestamp, blockhash(block.number - 1)))) % 100000 + 1;
+                    uint256 tmp = uint256(keccak256(abi.encodePacked(msg.sender, nonce++, block.timestamp, blockhash(block.number - 1)))) % 4 + 1;
                     firstrandom = firstrandom > tmp ? firstrandom : tmp;
                 }
             } else {
-                firstrandom = uint256(keccak256(abi.encodePacked(msg.sender, nonce++, block.timestamp, blockhash(block.number - 1)))) % 100000 + 1;
+                firstrandom = uint256(keccak256(abi.encodePacked(msg.sender, nonce++, block.timestamp, blockhash(block.number - 1)))) % 4 + 1;
             }
             room[roomnum].big = big;
             room[roomnum].random1 = firstrandom;
-            room[roomnum].fighters.push(msg.sender);
+            room[roomnum].fighters[0] = msg.sender;
         } else {
             room[roomnum].tokenid2 = tokenId;
             if (msg.value == gamePrice.mul(5)) {
                 big = false;
                 for (int i = 0; i < 5; i++) {
-                    uint256 tmp = uint256(keccak256(abi.encodePacked(msg.sender, nonce++, block.timestamp, blockhash(block.number - 1)))) % 100000 + 1;
+                    uint256 tmp = uint256(keccak256(abi.encodePacked(msg.sender, nonce++, block.timestamp, blockhash(block.number - 1)))) % 4 + 1;
                     secondrandom = secondrandom > tmp ? secondrandom : tmp;
                 }
             } else {
-                secondrandom = uint256(keccak256(abi.encodePacked(msg.sender, nonce++, block.timestamp, blockhash(block.number - 1)))) % 100000 + 1;
+                secondrandom = uint256(keccak256(abi.encodePacked(msg.sender, nonce++, block.timestamp, blockhash(block.number - 1)))) % 4 + 1;
             }
             room[roomnum].random2 = secondrandom;
-            room[roomnum].fighters.push(msg.sender);
+            room[roomnum].fighters[1] = msg.sender;
             startGame(tokenId);
             emit GameStarted(waitingId, tokenId);
             waitingId = 0;
         }
     }
 
-    // function joinLobby(
-    //     uint256 tokenId,
-    //     bool big,
-    //     uint256 roomnum
-    // ) internal {
-    //     if (waitingId == 0) {
-    //         waitingId = tokenId;
-    //         if (big) {
-    //             waitingNumber = getRandomNumber();
-    //         } else {
-    //             waitingNumber = getRandomNumber();
-    //             if (firstrandom > waitingNumber) waitingNumber = firstrandom;
-    //         }
-    //     } else {
-    //         startGame(tokenId);
-    //         emit GameStarted(waitingId, tokenId);
-    //         waitingId = 0;
-    //     }
-    // }
-
     function leaveLobby(uint256 tokenId) external {
         require(NFT.ownerOf(tokenId) == _msgSender(), "NOT_OWNER");
         require(waitingId == tokenId, "NOT_IN_LOBBY");
         waitingId = 0;
+        NFT.transferFrom(address(this), msg.sender, tokenId);
     }
 
     function startGame(uint256 tokenId) internal {
@@ -198,25 +201,26 @@ contract Meow is ERC20, Ownable {
         _mint(oppositeAddress, 1);
         if(!big) tmpgamePrice = gamePrice.mul(5);
         else tmpgamePrice = gamePrice;
+        
+        if (waitingNumber == 3)
+            jackpot(waitingAddress, oppositeAddress, nextNumber);
+        if (nextNumber == 3)
+            jackpot(oppositeAddress, waitingAddress, waitingNumber);
+
         if (waitingNumber == nextNumber) {
             sendPrice(waitingAddress, tmpgamePrice);
             sendPrice(oppositeAddress, tmpgamePrice);
         } else {
             if (waitingNumber > nextNumber) {
-                sendPrice(waitingAddress, tmpgamePrice);
+                sendPrice(waitingAddress, tmpgamePrice.mul(12).div(20));
                 NFT.transferFrom(oppositeAddress, waitingAddress, tokenId);
             } else {
-                sendPrice(oppositeAddress, tmpgamePrice);
-                NFT.transferFrom(waitingAddress, oppositeAddress, waitingId);
+                sendPrice(oppositeAddress, tmpgamePrice.mul(12).div(10));
+                NFT.transferFrom(waitingAddress, oppositeAddress, tokenId);
             }
             sendPrice(teamAddress, tmpgamePrice.mul(2).div(10));
-            jackpotAmount += tmpgamePrice.mul(8).div(10);
+            jackpotAmount += tmpgamePrice.mul(6).div(10);
         }
-
-        if (waitingNumber == 77777)
-            jackpot(waitingAddress, oppositeAddress, nextNumber);
-        if (nextNumber == 77777)
-            jackpot(oppositeAddress, waitingAddress, waitingNumber);
     }
 
     function jackpot(
@@ -224,15 +228,14 @@ contract Meow is ERC20, Ownable {
         address other,
         uint256 otherNumber
     ) internal {
-        if (otherNumber == 77777) {
-            sendPrice(rolled, jackpotAmount.mul(3).div(10));
-            sendPrice(other, jackpotAmount.mul(3).div(10));
+        if (otherNumber == 3) {
+            sendPrice(rolled, jackpotAmount.mul(5).div(20));
+            sendPrice(other, jackpotAmount.mul(5).div(20));
         } else {
             sendPrice(rolled, jackpotAmount.mul(4).div(10));
             sendPrice(other, jackpotAmount.mul(1).div(10));
         }
         distributeToStakers();
-        jackpotAmount = 0;
     }
 
     function distributeToStakers() internal {
